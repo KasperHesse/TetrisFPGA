@@ -10,7 +10,7 @@ The entire project is written in [Chisel](https://github.com/freechipsproject/ch
 Get a working installation of Chisel/Scala by following [this handy guide](https://github.com/freechipsproject/chisel3/blob/master/SETUP.md). 
 Then run
 ```
-sbt "runMain Top"
+sbt "runMain TetrisTop"
 ```
 To generate the corresponding Verilog code. Use Xilinx Vivado or your own favorite EDA Tool to put it onto an FPGA with a VGA port
 
