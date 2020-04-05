@@ -3,47 +3,56 @@ import chisel3._
 import chisel3.util._
 
 class SingleBoxDrop extends Box {
-  /**
+
+   /**
     * Sets the coords of current block to a new squiggly at (5,0), (5,1), (4,1), (4,2)
     */
   def addNewBlock():Unit = {
-    coords(0).x := 0.U
+    coords(0).x := 5.U
     coords(0).y := 0.U
 
-    coords(1).x := 0.U
+    coords(1).x := 5.U
     coords(1).y:= 1.U
 
-    coords(2).x := 1.U
+    coords(2).x := 4.U
     coords(2).y := 1.U
 
-    coords(3).x := 1.U
+    coords(3).x := 4.U
     coords(3).y := 2.U
 
     state := sCheckbelow
     running := false.B
   }
 
+  val checkEn: Bool = RegInit(false.B)
+  val checkCnt: UInt = RegInit(7.U(3.W))
   /**
-    * Updates the position of the currently falling block.
-    * If it detects a collision, writes the currently falling block into memory
+    * Checks whether the currently falling block can move further down
+    * Sets next state depending on the outcome
     */
   def checkBlockPositions(): Unit = {
-    val cnt = RegInit(0.U(3.W))
+    //Located outside for debugging purposes
+
+    //Enable-signal is used for determinining state transitions
+    checkEn := (state === sCheckbelow)
+    when(rising(checkEn)) {
+      checkCnt := 0.U
+    }
     //Loop over the 4 pieces of our currently falling block. Check if, for any of them, the piece directly
     //below in the memory contains anything
-    when(cnt < 4.U) {
+    when(checkCnt < 4.U) {
       //Read the grid position just below each field of current block
-      when(read(coords(cnt).x, coords(cnt).y + 1.U) || coords(cnt).y === 14.U) {
+      when(read(coords(checkCnt).x, coords(checkCnt).y + 1.U) || coords(checkCnt).y === 14.U) {
         //If grid position just below us = 1 OR any block is in the 14th layer, stop moving down
+        checkEn := false.B
+        checkCnt := 6.U //Set count to 4 to indicate that we're finished
         state := sWriteram
-        running := false.B
-        cnt := 0.U
-      } otherwise {
-        cnt := cnt + 1.U
       }
-    } otherwise {
-      cnt := 0.U
-      running := false.B
+
+      checkCnt := checkCnt + 1.U
+    } .elsewhen(checkEn && checkCnt === 4.U) { //Move forward as planned
+      checkEn := false.B
+      checkCnt := 6.U //Set to 7 to avoid timing issues on next round
       state := sDropdown
     }
   }
@@ -61,19 +70,26 @@ class SingleBoxDrop extends Box {
     running := false.B
   }
 
+  val RAMen: Bool = RegInit(false.B)
+  val RAMcnt: UInt = RegInit(7.U(3.W))
   /**
     * Writes the current piece into RAM at its positions
     * Afterwards, sets flags such that next cycle will add a new piece to the screen
     */
   def writePieceToRAM(): Unit = {
-    val cnt = RegInit(0.U(3.W))
-    when(cnt < 4.U) {
-      write(coords(cnt).x, coords(cnt).y, true.B)
-      cnt := cnt + 1.U
-    } otherwise {
-      cnt := 0.U
-      running := false.B
+
+    RAMen := (state === sWriteram)
+    when(rising(RAMen)) {
+      RAMcnt := 0.U
+    }
+
+    when(RAMcnt < 4.U) {
+      write(coords(RAMcnt).x, coords(RAMcnt).y, true.B)
+      RAMcnt := RAMcnt + 1.U
+    } .elsewhen(RAMen && RAMcnt === 4.U) {
       state := sAddnew
+      RAMcnt := 7.U
+      RAMen := false.B
     }
   }
 
@@ -81,15 +97,15 @@ class SingleBoxDrop extends Box {
     * Draws all boxes on the screen during the display period
     */
   def drawBoxes(): Unit = {
-
-    //Either of these statements will be true when current coords equal the falling block
     val t = Wire(Vec(4, Bool()))
     for(i <- 0 to 3) {
       t(i) := (x.asUInt() === coords(i).x && y.asUInt() === coords(i).y)
     }
 
     when(160.U <= io.col && io.col < 480.U)  {//Middle half of the screen
-      when(t(0) || t(1) || t(2) || t(3)) {
+      /*when(read(x.asUInt(), y.asUInt())) {
+        setColours(15.U, 0.U, 0.U)
+      } .else*/when(t(0) || t(1) || t(2) || t(3)) {
         setColours(0.U, 10.U, 0.U)
       } .elsewhen(read(x.asUInt(), y.asUInt())) {
         setColours(15.U, 0.U, 0.U)
@@ -130,28 +146,24 @@ class SingleBoxDrop extends Box {
   }
 
   /// IMPLEMENTATION ///
+  val running: Bool = RegInit(false.B) //High during updates in blanking interval
+  val sAddnew::sCheckbelow::sDropdown::sWriteram::Nil = Enum(4) //States
+  val state: UInt = RegInit(sAddnew) //State register
   //Create memory
   val mem: MemoryGrid = Module(new MemoryGrid)
-  //We don't need to force any of these guys to have values
-  mem.io.wen := DontCare
-  mem.io.ren := DontCare
-  mem.io.X := DontCare
-  mem.io.Y := DontCare
-  mem.io.wrData := DontCare
+  //By default, don't do anything
+  mem.io.wen := false.B
+  mem.io.ren := false.B
+  mem.io.X := 0.U
+  mem.io.Y := 0.U
+  mem.io.wrData := false.B
 
 
-  val coords = Reg(Vec(4, new Coord))
+  val coords: Vec[Coord] = Reg(Vec(4, new Coord)) //Coordinates of the currently falling block
   io.coords := coords
-  //Do we need to initalize these?
 
-/*  val x: UInt = Wire(UInt())
-  val y: UInt = Wire(UInt())
-  x := (io.col - 160.U) >> 5
-  io.x := x
-  y := io.row >> 5
-  io.y := y*/
-  val x = (io.col-160.U) >> 5 //division by 32
-  val y = io.row >> 5 //division by 32
+  val x: Bits = (io.col-160.U) >> 5 //X coordinate on game grid
+  val y: Bits = io.row >> 5 //Y coordinate on game grid
   io.x := x
   io.y := y
 
@@ -160,46 +172,44 @@ class SingleBoxDrop extends Box {
   val frameTick: Bool = frameCnt === "b111111".U
   frameCnt := Mux(io.frame, frameCnt + 1.U, frameCnt)
 
-  //Control variables
-  val running: Bool = RegInit(false.B)
-  /*
-  val addNewPiece: Bool = RegInit(true.B)
-  val pieceIsMoving: Bool = RegInit(false.B)
-  val addPieceToRAM: Bool = RegInit(false.B)
-  val legalMove: Bool = RegInit(false.B)*/
+  //Movement counter. Allow movement every 16 frames
+  val moveCnt: UInt = RegInit(0.U(4.W))
+  moveCnt := Mux(io.frame && moveCnt < 15.U, moveCnt + 1.U, moveCnt)
 
-  val sAddnew::sCheckbelow::sDropdown::sWriteram::Nil = Enum(4)
-  val state: UInt = RegInit(sAddnew)
 
   //Control flow
-  when(rising(frameTick)) {
+  when(rising(frameTick)) { //Every 64 frames (approx 1 second) drop the boxes
     running := true.B
+    frameCnt := 0.U
   }
 
   when(!io.vblank) {  //When in drawing mode
     drawBoxes()
   } .elsewhen(io.vblank && running) { //During blanking interval and on an update frame
     setColours(0.U, 0.U, 0.U)
-    frameCnt := 0.U
     switch(state) {
       is(sAddnew) {
         addNewBlock()
       }
       is(sCheckbelow) {
         checkBlockPositions()
+//        moveBoxes()
       }
       is(sDropdown) {
         dropDown()
+//        moveBoxes()
       }
       is(sWriteram) {
         writePieceToRAM()
       }
     }
+
   } .otherwise {
-    setColours(0.U, 0.U, 0.U)
+    setColours(0.U, 0.U, 0.U) //Default assignment
   }
 }
 
 object SingleBoxDrop extends App {
-  chisel3.Driver.execute(args, () => new SingleBoxDrop())
+  val a = Array("--target-dir", "output")
+  chisel3.Driver.execute(a, () => new SingleBoxDrop())
 }

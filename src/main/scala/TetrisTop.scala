@@ -1,7 +1,7 @@
 import chisel3._
 import chisel3.util._
 
-class Top extends Module {
+class TetrisTop extends Module {
   val io = IO(new Bundle {
     val btnU: Bool = Input(Bool())
     val btnD: Bool = Input(Bool())
@@ -60,7 +60,7 @@ class Top extends Module {
   io.vsync := timing.io.vsync
 }
 
-object Top extends App {
+object TetrisTop extends App {
   val a = Array("--target-dir", "output")
-  chisel3.Driver.execute(a, () => new Top())
+  chisel3.Driver.execute(a, () => new TetrisTop())
 }

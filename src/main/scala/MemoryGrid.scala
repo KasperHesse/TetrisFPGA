@@ -12,9 +12,6 @@ class MemoryGrid extends Module {
   })
 
   //Instantiate the memory bank
-  //Consists of 15 vectors with 10 booleans
-  //Vector number: Row. Vector position: Col
-//  val mem: Mem[Vec[Bool]] = Mem(15, Vec(10, Bool()))
   val mem = Mem(150, Bool())
 
   when(io.wen) {mem.write(io.Y*10.U + io.X, io.wrData)}
@@ -23,6 +20,18 @@ class MemoryGrid extends Module {
   //Reads the x'th position of the vector at index y
   io.rdData := false.B
   when(io.ren) {io.rdData := mem.read(io.Y*10.U + io.X)}
+
+  //Instantiate it to false values
+  val init: Bool = RegInit(false.B)
+  val cnt: UInt = RegInit(0.U(8.W))
+
+  when(!init) {
+    mem.write(cnt, false.B)
+    cnt := cnt + 1.U
+  }
+  when(cnt >= 150.U) {
+    init := true.B
+  }
 }
 
 object MemoryGrid extends App {
