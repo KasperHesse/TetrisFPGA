@@ -31,7 +31,7 @@ class TetrisTop extends Module {
     V_BACK_PORCH = 33
   ))
 
-  val box: Box = Module(new SingleBoxDrop)
+  val box: Box = Module(new BoxDropModular(maxDepth = 14))
   box.io.btnU := io.btnU
   box.io.btnL := io.btnL
   box.io.btnD := io.btnD
