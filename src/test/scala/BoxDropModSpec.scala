@@ -15,7 +15,7 @@ class BoxDropModTest(dut: BoxDropModular) extends PeekPokeTester(dut) {
     poke(dut.io.row, (y*32).U)
   }
 
-  def xpos1(x: Int, y: Int): Unit = {
+  def xpos0(x: Int, y: Int): Unit = {
     expect(c0.x, x.U)
     expect(c0.y, y.U)
   }
@@ -40,7 +40,7 @@ class BoxDropModTest(dut: BoxDropModular) extends PeekPokeTester(dut) {
   step(150)
 
 
-  //64 frames to get into updating mode
+  //32 frames to get into updating mode
   poke(dut.io.frame, true.B)
   poke(dut.io.vblank, true.B)
   //Heading to sAddNew
@@ -53,10 +53,10 @@ class BoxDropModTest(dut: BoxDropModular) extends PeekPokeTester(dut) {
   //Check that coord vectors are working
 
   expect(c0.x, 5.U)
-  expect(c0.y, 0.U)
+  expect(c0.y, 1.U)
 
   expect(c1.x, 5.U)
-  expect(c1.y, 1.U)
+  expect(c1.y, 0.U)
 
   expect(c2.x, 4.U)
   expect(c2.y, 1.U)
@@ -82,21 +82,21 @@ class BoxDropModTest(dut: BoxDropModular) extends PeekPokeTester(dut) {
   step(31)
   poke(dut.io.frame, false.B)
   //State should be moveLR, nothing should have happened yet
-  xpos1(5,0)
+  xpos0(5,1)
 
   //Step over state
   step(15)
-  xpos1(6,0)
+  xpos0(6,1)
 
   //Step another 32 to hit next update cycle
   poke(dut.io.frame, true.B)
   step(32)
   poke(dut.io.frame, false.B)
   //Still nothing should have happpened
-  xpos1(6,0)
+  xpos0(6,1)
   //Step to move another field to the right and down
   step(15)
-  xpos1(7,1)
+  xpos0(7,2)
 
   //Try to drop and move at frame 31
   poke(dut.io.frame, true.B)
@@ -107,9 +107,9 @@ class BoxDropModTest(dut: BoxDropModular) extends PeekPokeTester(dut) {
   poke(dut.io.frame, false.B)
 
   //2 to move
-  xpos1(7,1)
+  xpos0(7,2)
   step(15)
-  xpos1(6,2)
+  xpos0(6,3)
 
   //Disable left, try to drop
   poke(dut.io.frame, true.B)
@@ -118,32 +118,32 @@ class BoxDropModTest(dut: BoxDropModular) extends PeekPokeTester(dut) {
   step(32)
   poke(dut.io.frame, false.B)
   step(20)
-  xpos1(6,3)
+  xpos0(6,4)
 
   poke(dut.io.btnD, true.B)
   poke(dut.io.frame, true.B)
   step(32)
   poke(dut.io.frame, false.B)
   step(15)
-  xpos1(6,4)
+  xpos0(6,5)
 
   poke(dut.io.frame, true.B)
   step(32)
   poke(dut.io.frame, false.B)
   step(15)
-  xpos1(6,5)
+  xpos0(6,6)
 
   poke(dut.io.frame, true.B)
   step(32)
   poke(dut.io.frame, false.B)
   step(15)
-  xpos1(6,6)
+  xpos0(6,7)
 
   poke(dut.io.frame, true.B)
   step(32)
   poke(dut.io.frame, false.B)
   step(15)
-  xpos1(5,0)
+  xpos0(5,1)
 
   //Expect the previous place to be red
   poke(dut.io.vblank, false.B)
@@ -264,10 +264,107 @@ class BDMTest2(dut: BoxDropModular) extends PeekPokeTester(dut) {
   step(15)
   xpos1(4,4)
 }
+
+
+class FlipTest(dut: BoxDropModular) extends PeekPokeTester(dut) {
+  def xpos0(x: Int, y: Int): Unit = {
+    expect(c0.x, x.U)
+    expect(c0.y, y.U)
+  }
+  def xpos1(x: Int, y: Int): Unit = {
+    expect(c1.x, x.U)
+    expect(c1.y, y.U)
+  }
+  def xpos2(x: Int, y: Int): Unit = {
+    expect(c2.x, x.U)
+    expect(c2.y, y.U)
+  }
+  def xpos3(x: Int, y: Int): Unit = {
+    expect(c3.x, x.U)
+    expect(c3.y, y.U)
+  }
+
+  //Reset all inputs
+  poke(dut.io.btnU, 0.U)
+  poke(dut.io.btnL, 0.U)
+  poke(dut.io.btnR, 0.U)
+  poke(dut.io.btnD, 0.U)
+  poke(dut.io.row, 0.U)
+  poke(dut.io.col, 0.U)
+  poke(dut.io.frame, 0.U)
+  poke(dut.io.vblank, 0.U)
+
+  val c0 = dut.io.coords(0)
+  val c1 = dut.io.coords(1)
+  val c2 = dut.io.coords(2)
+  val c3 = dut.io.coords(3)
+
+  //64 frames are needed to get into updating mode
+  //150 frames to init memory
+  step(150)
+
+  //32 frames to get into updating mode
+  poke(dut.io.frame, true.B)
+  poke(dut.io.vblank, true.B)
+  //Heading to sAddNew
+  step(32)
+  //And one more frame to latch new values
+  step(1)
+  //poke false to enable outputs
+  poke(dut.io.vblank, false.B)
+  poke(dut.io.frame, false.B)
+  //Check that coord vectors are working
+
+  xpos0(5,1)
+  xpos1(5,0)
+  xpos2(4,1)
+  xpos3(4,2)
+
+
+  //Attempt to rotate
+  poke(dut.io.frame, true.B)
+  poke(dut.io.btnU, true.B)
+  step(31)
+  poke(dut.io.frame, false.B)
+  step(15)
+  xpos0(5,1)
+  xpos1(6,1)
+  xpos2(5,0)
+  xpos3(4,0)
+
+  poke(dut.io.frame, true.B)
+  poke(dut.io.btnU, true.B)
+//  poke(dut.io.btnD, true.B)
+  step(32)
+  poke(dut.io.frame, false.B)
+  step(15)
+  xpos0(5,2)
+  xpos1(5,3)
+  xpos2(6,2)
+  xpos3(6,1)
+
+  poke(dut.io.frame, true.B)
+  poke(dut.io.btnU, true.B)
+//  poke(dut.io.btnD, false.B)
+  step(32)
+  poke(dut.io.frame, false.B)
+  step(15)
+  xpos0(5,2)
+  xpos1(4,2)
+  xpos2(5,3)
+  xpos3(6,3)
+}
+
+
 class BoxDropModSpec extends FlatSpec with Matchers {
   "BoxDropModSpec " should "pass" in {
     chisel3.iotesters.Driver.execute(Array("--generate-vcd-output", "on"), () => new BoxDropModular(maxDepth = 8))
     { c => new BoxDropModTest(c)} should be (true)
+  }
+
+  "FlipTest " should "pass" in {
+    chisel3.iotesters.Driver.execute(Array("--generate-vcd-output", "on"), () => new BoxDropModular(maxDepth = 8))
+    { c => new FlipTest(c)} should be (true)
   }
 
 /*  "BDMTest2 " should "pass" in {

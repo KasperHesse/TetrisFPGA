@@ -35,7 +35,8 @@ class Box extends Module {
   def rising(v: Bool): Bool = v && !RegNext(v)
 }
 
+//Coords are stored as signed integers to allow for easier coordinate handling when working with rotation
 class Coord extends Bundle {
-  val x: UInt = UInt(4.W)
-  val y: UInt = UInt(4.W)
+  val x: SInt = SInt(5.W)
+  val y: SInt = SInt(5.W)
 }

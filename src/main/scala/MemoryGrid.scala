@@ -3,8 +3,8 @@ import chisel3._
 
 class MemoryGrid extends Module {
   val io = IO(new Bundle {
-    val X = Input(UInt(4.W))
-    val Y = Input(UInt(4.W))
+    val X = Input(SInt(5.W))
+    val Y = Input(SInt(5.W))
     val wrData = Input(Bool())
     val wen = Input(Bool())
     val ren = Input(Bool())
@@ -14,12 +14,12 @@ class MemoryGrid extends Module {
   //Instantiate the memory bank
   val mem = Mem(150, Bool())
 
-  when(io.wen) {mem.write(io.Y*10.U + io.X, io.wrData)}
+  when(io.wen) {mem.write((io.Y*10.S + io.X).asUInt(), io.wrData)}
 
   //Read data, set false as default value if we try to read without setting rdData
   //Reads the x'th position of the vector at index y
   io.rdData := false.B
-  when(io.ren) {io.rdData := mem.read(io.Y*10.U + io.X)}
+  when(io.ren) {io.rdData := mem.read((io.Y*10.S + io.X).asUInt())}
 
   //Instantiate it to false values
   val init: Bool = RegInit(false.B)
