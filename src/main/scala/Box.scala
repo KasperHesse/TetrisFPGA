@@ -19,7 +19,7 @@ class Box extends Module {
     val green: UInt = Output(UInt(4.W))
     val blue: UInt = Output(UInt(4.W))
 
-    val coords = Output(Vec(4, new Coord))
+    val coords: Vec[Coord] = Output(Vec(4, new Coord))
   })
 /*  for(i <- 0 to 3) {
     io.coords(i).x := DontCare
@@ -37,6 +37,6 @@ class Box extends Module {
 
 //Coords are stored as signed integers to allow for easier coordinate handling when working with rotation
 class Coord extends Bundle {
-  val x: SInt = SInt(5.W)
-  val y: SInt = SInt(5.W)
+  val x: UInt = UInt(4.W)
+  val y: UInt = UInt(4.W)
 }

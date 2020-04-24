@@ -42,7 +42,7 @@ class SingleBoxDrop extends Box {
     //below in the memory contains anything
     when(checkCnt < 4.U) {
       //Read the grid position just below each field of current block
-      when(read(coords(checkCnt).x, coords(checkCnt).y + 1.S) || coords(checkCnt).y === 14.S) {
+      when(read(coords(checkCnt).x, coords(checkCnt).y + 1.U) || coords(checkCnt).y === 14.U) {
         //If grid position just below us = 1 OR any block is in the 14th layer, stop moving down
         checkEn := false.B
         checkCnt := 6.U //Set count to 4 to indicate that we're finished
@@ -61,10 +61,10 @@ class SingleBoxDrop extends Box {
     * Drops the current piece down by 1 field by incrementing all y-values
     */
   def dropDown(): Unit = {
-    coords(0).y := coords(0).y + 1.S
-    coords(1).y := coords(1).y + 1.S
-    coords(2).y := coords(2).y + 1.S
-    coords(3).y := coords(3).y + 1.S
+    coords(0).y := coords(0).y + 1.U
+    coords(1).y := coords(1).y + 1.U
+    coords(2).y := coords(2).y + 1.U
+    coords(3).y := coords(3).y + 1.U
 
     state := sCheckbelow
     running := false.B
@@ -99,7 +99,7 @@ class SingleBoxDrop extends Box {
   def drawBoxes(): Unit = {
     val t = Wire(Vec(4, Bool()))
     for(i <- 0 to 3) {
-      t(i) := (x.asSInt() === coords(i).x && y.asSInt() === coords(i).y)
+      t(i) := ((x.asUInt() === coords(i).x) && (y.asUInt() === coords(i).y))
     }
 
     when(160.U <= io.col && io.col < 480.U)  {//Middle half of the screen
@@ -107,7 +107,7 @@ class SingleBoxDrop extends Box {
         setColours(15.U, 0.U, 0.U)
       } .else*/when(t(0) || t(1) || t(2) || t(3)) {
         setColours(0.U, 10.U, 0.U)
-      } .elsewhen(read(x.asSInt(), y.asSInt())) {
+      } .elsewhen(read(x.asUInt(), y.asUInt())) {
         setColours(15.U, 0.U, 0.U)
       } .otherwise {
         setColours(0.U, 7.U, 7.U)
@@ -123,7 +123,7 @@ class SingleBoxDrop extends Box {
     * @param y The y coordinate of the field to check
     * @return true if the field is set, false otherwise
     */
-  def read(x: SInt, y: SInt): Bool = {
+  def read(x: UInt, y: UInt): Bool = {
     mem.io.wen := false.B
     mem.io.ren := true.B
     mem.io.X := x
@@ -137,7 +137,7 @@ class SingleBoxDrop extends Box {
     * @param y The y coordinate of the field to write
     * @param d The value to write to this field
     */
-  def write(x: SInt, y: SInt, d: Bool):Unit = {
+  def write(x: UInt, y: UInt, d: Bool):Unit = {
     mem.io.wen := true.B
     mem.io.ren := false.B
     mem.io.X := x
