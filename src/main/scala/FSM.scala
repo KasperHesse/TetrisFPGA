@@ -6,7 +6,7 @@ import chisel3.util._
   * Should probably also be an intermediary that sends signals between the datapath(also taking care of colour outputs),
   * and the top-level device.
   */
-class BDM_FSM extends Module {
+class FSM extends Module {
   val io = IO(new Bundle {
     val finished: Bool = Input(Bool()) //Signals that the DP is finished processing data
     val validDrop: Bool = Input(Bool()) //Signals whether a drop operation was valid or not
@@ -20,6 +20,7 @@ class BDM_FSM extends Module {
     val op: Vec[Bool] = Output(Vec(6, Bool()))
   })
   def rising(v: Bool): Bool = v && !RegNext(v)
+
   /*
   FSM states and setup
    */
@@ -40,24 +41,24 @@ class BDM_FSM extends Module {
   when(rising(frame31 || frame63)) {
     running := true.B
   }
-
   /*
-  State logic
+  Command vector sent to datapath
    */
-  val cOp = Wire(Vec(6, Bool())) //Should default to false
+  val cOp = Wire(Vec(6, Bool())) //Commands for DP, one-hot encoded according to CoordCmds.
   val cOpU = cOp.asUInt() //for debug purposes, makes it easier to inspect on waveforms
   io.op := cOp
 
-  //Default assign everything to zeroes
-  cOp := VecInit(Seq.fill(6)(false.B))
-
+    /*
+  State logic
+   */
+  cOp := VecInit(Seq.fill(6)(false.B)) //All operands default to false
   //Set operand inputs based on current state
   when(stateReg === sMoveLR) {
-    cOp(CoordCmds.right) := io.btnR //Right
-    cOp(CoordCmds.left) := io.btnL //Left
-    cOp(CoordCmds.flip) := io.btnU //Flip
+    cOp(CoordCmds.right) := io.btnR
+    cOp(CoordCmds.left) := io.btnL
+    cOp(CoordCmds.flip) := io.btnU
   } .elsewhen(stateReg === sMoveDown) {
-    cOp(CoordCmds.down) := io.btnD || frame63
+    cOp(CoordCmds.down) := io.btnD || frame63 //Always move down on frame63, may also move down on btnD presses
   } .elsewhen(stateReg === sAddNew) {
     cOp(CoordCmds.addNew) := true.B
   } .elsewhen(stateReg === sSavePiece) {
@@ -101,4 +102,14 @@ class BDM_FSM extends Module {
       }
     }
   }
+}
+
+
+object CoordCmds {
+  val down = 0.U
+  val right = 1.U
+  val left = 2.U
+  val flip = 3.U
+  val addNew = 4.U
+  val savePiece = 5.U
 }

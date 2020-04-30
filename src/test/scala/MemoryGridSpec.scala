@@ -52,11 +52,13 @@ class MemoryGridTest(dut: MemoryGrid) extends PeekPokeTester(dut) {
   poke(dut.io.wen, false)
   poke(dut.io.ren, true)
   expect(dut.io.rdData, false)
+
+
 }
 
 class MemoryGridSpec extends FlatSpec with Matchers {
   "MemoryGrid " should "pass" in {
-    chisel3.iotesters.Driver.execute(Array("--generate-vcd-output", "on"), () => new MemoryGrid())
+    chisel3.iotesters.Driver.execute(Array("--generate-vcd-output", "on"), () => new MemoryGrid(testing=true.B))
     { c => new MemoryGridTest(c)} should be (true)
   }
 }

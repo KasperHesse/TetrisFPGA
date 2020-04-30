@@ -29,7 +29,7 @@ class MemoryGrid(testing: Bool = false.B) extends Module {
       mem.write(cnt, false.B)
       cnt := cnt + 1.U
     } .otherwise {
-      mem.write(cnt, cnt < 15.U)
+      mem.write(cnt, cnt > 125.U)
       cnt := cnt + 1.U
     }
   }
