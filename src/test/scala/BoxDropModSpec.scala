@@ -3,7 +3,7 @@ import chisel3._
 import chisel3.iotesters.PeekPokeTester
 import org.scalatest._
 
-class BoxDropModTest(dut: BoxDropModular) extends PeekPokeTester(dut) {
+class BoxDropModTest(dut: Datapath) extends PeekPokeTester(dut) {
   def xcolor(r: Int, g: Int, b: Int):Unit = {
     expect(dut.io.red, r.U)
     expect(dut.io.green, g.U)
@@ -154,7 +154,7 @@ class BoxDropModTest(dut: BoxDropModular) extends PeekPokeTester(dut) {
 /*
 This test is broken after adding random pieces. Need to recalculate the pieces that will appear
  */
-class BDMTest2(dut: BoxDropModular) extends PeekPokeTester(dut) {
+class BDMTest2(dut: Datapath) extends PeekPokeTester(dut) {
   def xcolor(r: Int, g: Int, b: Int):Unit = {
     expect(dut.io.red, r.U)
     expect(dut.io.green, g.U)
@@ -266,7 +266,7 @@ class BDMTest2(dut: BoxDropModular) extends PeekPokeTester(dut) {
 }
 
 
-class FlipTest(dut: BoxDropModular) extends PeekPokeTester(dut) {
+class FlipTest(dut: Datapath) extends PeekPokeTester(dut) {
   def xpos0(x: Int, y: Int): Unit = {
     expect(c0.x, x.U)
     expect(c0.y, y.U)
@@ -358,12 +358,12 @@ class FlipTest(dut: BoxDropModular) extends PeekPokeTester(dut) {
 
 class BoxDropModSpec extends FlatSpec with Matchers {
   "BoxDropModSpec " should "pass" in {
-    chisel3.iotesters.Driver.execute(Array("--generate-vcd-output", "on"), () => new BoxDropModular(maxDepth = 8))
+    chisel3.iotesters.Driver.execute(Array("--generate-vcd-output", "on"), () => new Datapath(maxDepth = 8))
     { c => new BoxDropModTest(c)} should be (true)
   }
 
   "FlipTest " should "pass" in {
-    chisel3.iotesters.Driver.execute(Array("--generate-vcd-output", "on"), () => new BoxDropModular(maxDepth = 8))
+    chisel3.iotesters.Driver.execute(Array("--generate-vcd-output", "on"), () => new Datapath(maxDepth = 8))
     { c => new FlipTest(c)} should be (true)
   }
 

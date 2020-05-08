@@ -2,14 +2,7 @@
 import chisel3._
 
 class MemoryGrid(testing: Bool = false.B) extends Module {
-  val io = IO(new Bundle {
-    val X = Input(UInt(4.W))
-    val Y = Input(UInt(4.W))
-    val wrData = Input(Bool())
-    val wen = Input(Bool())
-    val ren = Input(Bool())
-    val rdData = Output(Bool())
-  })
+  val io = IO( new MemIO)
 
   //Instantiate the memory bank
   val mem = Mem(150, Bool())
@@ -36,6 +29,15 @@ class MemoryGrid(testing: Bool = false.B) extends Module {
   when(cnt >= 150.U) {
     init := true.B
   }
+}
+
+class MemIO extends Bundle {
+  val X = Input(UInt(4.W))
+  val Y = Input(UInt(4.W))
+  val wrData = Input(Bool())
+  val wen = Input(Bool())
+  val ren = Input(Bool())
+  val rdData = Output(Bool())
 }
 
 object MemoryGrid extends App {

@@ -6,61 +6,60 @@ import chisel3.util._
   * Datapath for the entire system
   *
   */
-class BoxDropModular(maxDepth: Int = 14) extends Box {
-  /*
-  ===============MODULES AND DEFAULT ASSIGNMENTS================
-   */
+class Datapath(maxDepth: Int = 14) extends Module {
+  val io = IO(new Bundle {
+    val en: Bool = Input(Bool()) //Enable signal
+    val op: Vec[Bool] = Input(Vec(6, Bool())) //Opcode from FSM
+    val fin: Bool = Output(Bool()) //Finish flag to FSM
+    val validDrop: Bool = Output(Bool()) //Valid drop info to FSM
 
-  //State machine
-  val FSM = Module(new FSM())
-  FSM.io.btnR := io.btnR
-  FSM.io.btnL := io.btnL
-  FSM.io.btnU := io.btnU
-  FSM.io.btnD := io.btnD
-  FSM.io.frame := io.frame
-  val op = FSM.io.op
-  val en = FSM.io.en
-  val fin = FSM.io.finished
-  val validDrop = FSM.io.validDrop
-  validDrop := true.B
+    val mem = Flipped(new MemIO()) //Memory interface
+    val coords: Vec[Coord] = Output(Vec(4, new Coord)) //Current block coordinates
+  })
+  //Default memory assignments
+  io.mem.X := 0.U
+  io.mem.Y := 0.U
+  io.mem.wen := false.B
+  io.mem.ren := false.B
+  io.mem.wrData := false.B
 
-  //Memory
-  val mem = Module(new MemoryGrid())
-  mem.io.wrData := false.B
-  mem.io.wen := false.B
-  mem.io.ren := false.B
-  mem.io.X := 0.U
-  mem.io.Y := 0.U
+  def rising(v: Bool): Bool = v && !RegNext(v)
+
+  //State machine connections and definitions
+  val op = io.op
+  val en = io.en
+  val fin = io.fin
+  val validDrop = io.validDrop
+  validDrop := true.B //Default assign
+  fin := false.B //Default assign
 
   //Pseudo-random number, used to select the next piece
-  val rand = RegInit(0.U(16.W))
-  rand := Mux(io.btnR || io.btnU || io.btnL || io.btnD, rand + 1.U, rand)
+  val rand = RegInit(0.U(3.W))
+  rand := Mux(rand < 7.U, rand + 1.U, 0.U)
 
   /*
   ========== COORDINATES AND ROTATION STATE
    */
   //Rotation management
-  val rotation: UInt = RegInit(0.U(2.W))
-  val offsets: Vec[Vec[CoordOffsets]] = Wire(Vec(7, Vec(4, new CoordOffsets)))
+  val rotation: UInt = RegInit(0.U(2.W)) //Current piece rotation
+  val offsets: Vec[Vec[CoordOffsets]] = Wire(Vec(7, Vec(4, new CoordOffsets))) //Coordinate offsets from baseX, baseY
   val leftS::rightS::bar::cube::t::leftL::rightL::Nil = Enum(7) //Pieces and their respective numbers
+  instantiateCoordOffsets() //Defines all of the offsets
+
   //Coordinates
-  val coords: Vec[Coord] = Wire(Vec(4, new Coord))
+  val coords: Vec[Coord] = Wire(Vec(4, new Coord)) //Coordinates of the four pieces of falling block
   val baseX: UInt = RegInit(0.U(4.W))
   val baseY: UInt = RegInit(0.U(4.W))
-  val piece: UInt = RegInit(leftS)
+  val piece: UInt = RegEnable(rand, leftS, op(CoordCmds.addNew)) //Starting piece
 
+  //Shortcuts and access
   val c0 = coords(0)
   val c1 = coords(1)
   val c2 = coords(2)
   val c3 = coords(3)
   io.coords := coords
 
-  val x: Bits = (io.col-160.U) >> 5 //X coordinate on game grid
-  val y: Bits = io.row >> 5 //Y coordinate on game grid
-  io.x := x
-  io.y := y
-
-  //Set coordinates based on offsets from base coordinate
+  //Set coordinates of pieces based on offsets from base coordinate
   c0.x := baseX + offsets(piece)(rotation).x0
   c0.y := baseY + offsets(piece)(rotation).y0
   c1.x := baseX + offsets(piece)(rotation).x1
@@ -69,19 +68,6 @@ class BoxDropModular(maxDepth: Int = 14) extends Box {
   c2.y := baseY + offsets(piece)(rotation).y2
   c3.x := baseX + offsets(piece)(rotation).x3
   c3.y := baseY + offsets(piece)(rotation).y3
-
-  instantiateCoordMods()
-
-  //Defaults
-  fin := false.B
-
-  //Display output logic
-  when(io.vblank) {
-    setColours(0.U, 0.U, 0.U)
-  } .otherwise {
-    drawBoxes()
-  }
-
 
   //The datapath
   when(en) {
@@ -106,34 +92,15 @@ class BoxDropModular(maxDepth: Int = 14) extends Box {
       when (removeFullRows(saveFinished)) { //Once finished saving, removeFullRows is enabled
         fin := true.B //Once finished removing, fin is asserted
       }
-//      when( saveToRAM( op(CoordCmds.savePiece) )) { //Once saveToRAM returns true, prune all filled rows
-//        fin := true.B
-//      }
     }
 
     //Adding new pieces
     when(op(CoordCmds.addNew)) {
-     val g: UInt = rand % 7.U //Just a helper signal to determine which piece to add
-     piece := g
+//     val g: UInt = rand % 7.U //Just a helper signal to determine which piece to add
+//     piece := g
      //Reset base coords
      baseX := 4.U
      baseY := 0.U
-     /*
-     when(g === 0.U) {
-       addLeftSquiggly()
-     } .elsewhen(g === 1.U) {
-       addRightSquiggly()
-     } .elsewhen(g === 2.U) {
-       addBar()
-     } .elsewhen(g === 3.U) {
-       addCube()
-     } .elsewhen(g === 4.U) { //When g===4.U
-       addT()
-     } .elsewhen(g === 5.U) {
-       addLeftL()
-     } .otherwise { //when g === 6.U
-       addRightL()
-     }*/
      fin:=true.B
    }
   }
@@ -195,7 +162,6 @@ class BoxDropModular(maxDepth: Int = 14) extends Box {
     }
 
     //Check memory positions for existing pieces
-
     when(rising(en)) {
       movCnt := 0.U
     }
@@ -300,13 +266,6 @@ class BoxDropModular(maxDepth: Int = 14) extends Box {
 
     //Default assignments
     val done = WireInit(false.B)
-//    io.mem.ren := false.B
-//    io.mem.wen := false.B
-//    io.mem.X := xCoord
-//    io.mem.Y := yCoord
-//    io.mem.wrData := false.B
-
-
     //State register
     val idle :: checking :: reading :: writing :: finished :: Nil = Enum(5)
     val state = RegInit(idle);
@@ -343,7 +302,7 @@ class BoxDropModular(maxDepth: Int = 14) extends Box {
 
       //State for reading a value at (x,y-1) and subsequently writing it to (x,y)
       //effectively moving all lines down by one
-      is(reading) { //When entering this, xCoord should already be equal to 9
+      is(reading) { //When entering this for the first time, xCoord should already be equal to 9
         when(rowCnt === 0.U) { //No more rows, or none to begin with
           state := finished
         }.otherwise {
@@ -387,11 +346,11 @@ class BoxDropModular(maxDepth: Int = 14) extends Box {
     * @return true if the field is set, false otherwise
     */
   def read(x: UInt, y: UInt): Bool = {
-    mem.io.wen := false.B
-    mem.io.ren := true.B
-    mem.io.X := x
-    mem.io.Y := y
-    mem.io.rdData
+    io.mem.wen := false.B
+    io.mem.ren := true.B
+    io.mem.X := x
+    io.mem.Y := y
+    io.mem.rdData
   }
 
   /**
@@ -401,37 +360,11 @@ class BoxDropModular(maxDepth: Int = 14) extends Box {
     * @param d The value to write to this field
     */
   def write(x: UInt, y: UInt, d: Bool):Unit = {
-    mem.io.wen := true.B
-    mem.io.ren := false.B
-    mem.io.X := x
-    mem.io.Y := y
-    mem.io.wrData := d
-  }
-
-  /**
-    * Draws all boxes on the game screen.
-    * The currently falling piece is drawn green
-    * Previous pieces are red
-    * The game background is teal
-    * Areas not part of the game are grey
-    */
-  def drawBoxes(): Unit = {
-    val t = Wire(Vec(4, Bool()))
-    for(i <- 0 to 3) {
-      t(i) := ((x.asUInt() === coords(i).x) && (y.asUInt() === coords(i).y))
-    }
-
-    when(160.U <= io.col && io.col < 480.U)  {//Middle half of the screen
-      when(t(0) || t(1) || t(2) || t(3)) { //Currently dropping block
-        setColours(0.U, 10.U, 0.U)
-      } .elsewhen(read(x.asUInt(), y.asUInt())) { //In memory
-        setColours(15.U, 0.U, 0.U)
-      } .otherwise { //Rest of the game area
-        setColours(0.U, 7.U, 7.U)
-      }
-    } otherwise { //outer 1/4 on each side
-      setColours(3.U, 3.U, 3.U)
-    }
+    io.mem.wen := true.B
+    io.mem.ren := false.B
+    io.mem.X := x
+    io.mem.Y := y
+    io.mem.wrData := d
   }
 
   /**
@@ -457,40 +390,8 @@ class BoxDropModular(maxDepth: Int = 14) extends Box {
   def addY(v: Int): Unit = {
     baseY := baseY + v.U
   }
-/*
-  def addLeftSquiggly(): Unit = {
-    baseX := 5.S
-    baseY := 1.S
-  }
-  def addRightSquiggly(): Unit = {
-    baseX := 5.S
-    baseY := 1.S
-  }
-  def addBar(): Unit = {
-    baseX := 5.S
-    baseY := 1.S
-  }
-  def addCube(): Unit = {
-    baseX := 5.S
-    baseY := 0.S
-  }
-  def addT(): Unit = {
-    baseX := 5.S
-    baseY := 1.S
-  }
 
-  def addLeftL(): Unit = {
-    baseX := 5.S
-    baseY := 1.S
-  }
-
-  def addRightL(): Unit = {
-    baseX := 5.S
-    baseY := 1.S
-  }
- */
-
-  def instantiateCoordMods(): Unit = {
+  def instantiateCoordOffsets(): Unit = {
 
     /*
     Coordinate modifiers for left squiggly
@@ -648,6 +549,9 @@ class BoxDropModular(maxDepth: Int = 14) extends Box {
     offsets(cube)(3).x3 := 2.U
     offsets(cube)(3).y3 := 0.U
 
+    /*
+    Coordinate modifiers for T
+    */
     offsets(t)(0).x0 := 1.U
     offsets(t)(0).y0 := 2.U
     offsets(t)(0).x1 := 1.U
@@ -684,6 +588,9 @@ class BoxDropModular(maxDepth: Int = 14) extends Box {
     offsets(t)(3).x3 := 1.U
     offsets(t)(3).y3 := 0.U
 
+    /*
+    Coordinate modifiers for left L
+    */
     offsets(leftL)(0).x0 := 1.U
     offsets(leftL)(0).y0 := 0.U
     offsets(leftL)(0).x1 := 1.U
@@ -720,6 +627,9 @@ class BoxDropModular(maxDepth: Int = 14) extends Box {
     offsets(leftL)(3).x3 := 2.U
     offsets(leftL)(3).y3 := 2.U
 
+    /*
+    Coordinate modifiers for right L
+    */
     offsets(rightL)(0).x0 := 1.U
     offsets(rightL)(0).y0 := 0.U
     offsets(rightL)(0).x1 := 1.U
@@ -773,7 +683,7 @@ class CoordOffsets extends Bundle {
 }
 
 
-object BoxDropModular extends App {
+object Datapath extends App {
   val a = Array("--target-dir", "output")
-  chisel3.Driver.execute(a, () => new BoxDropModular(maxDepth = 14))
+  chisel3.Driver.execute(a, () => new Datapath(maxDepth = 14))
 }

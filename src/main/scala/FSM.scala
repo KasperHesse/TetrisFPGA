@@ -52,16 +52,17 @@ class FSM extends Module {
   State logic
    */
   cOp := VecInit(Seq.fill(6)(false.B)) //All operands default to false
+
   //Set operand inputs based on current state
-  when(stateReg === sMoveLR) {
+  when(stateReg === sMoveLR) { //Move left/right og flip, only if L,R,U buttons are pressed
     cOp(CoordCmds.right) := io.btnR
     cOp(CoordCmds.left) := io.btnL
     cOp(CoordCmds.flip) := io.btnU
-  } .elsewhen(stateReg === sMoveDown) {
+  } .elsewhen(stateReg === sMoveDown) { //Move down - always comes after moving left or right
     cOp(CoordCmds.down) := io.btnD || frame63 //Always move down on frame63, may also move down on btnD presses
   } .elsewhen(stateReg === sAddNew) {
     cOp(CoordCmds.addNew) := true.B
-  } .elsewhen(stateReg === sSavePiece) {
+  } .elsewhen(stateReg === sSavePiece) { //Whenever we've hit a piece below or on the bottom
     cOp(CoordCmds.savePiece) := true.B
   }
 
@@ -70,16 +71,16 @@ class FSM extends Module {
       is(sMoveLR) {
         when(io.finished) {
           stateReg := sMoveDown
-        } .elsewhen(!io.btnR && !io.btnU && !io.btnL) {
+        } .elsewhen(!io.btnR && !io.btnU && !io.btnL) { //If neither button is pressed, go straight to next state
           stateReg := sMoveDown
         }
       }
       is(sMoveDown) {
         when(io.finished) {
-          when(io.validDrop) {
+          when(io.validDrop) { //We can keep moving down
             stateReg := sMoveLR
             running := false.B
-          }.elsewhen(!io.validDrop) {
+          }.elsewhen(!io.validDrop) { //Collision, save the piece
             stateReg := sSavePiece
           }
         } .elsewhen(!cOp(CoordCmds.down)) { //If not finished, it might be because we're not supposed to be here at all!

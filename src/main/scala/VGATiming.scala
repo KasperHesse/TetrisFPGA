@@ -1,15 +1,14 @@
 import chisel3._
 import chisel3.util._
 
-class VGATiming(H_DISPLAY_PERIOD:Int,
-                H_FRONT_PORCH:Int,
-                H_SYNC_PULSE:Int,
-                H_BACK_PORCH:Int,
-                V_DISPLAY_PERIOD:Int,
-                V_FRONT_PORCH:Int,
-                V_SYNC_PULSE:Int,
-                V_BACK_PORCH:Int) extends Module {
-
+class VGATiming(H_DISPLAY_PERIOD:Int=640,
+                H_FRONT_PORCH:Int=16,
+                H_SYNC_PULSE:Int=96,
+                H_BACK_PORCH:Int=48,
+                V_DISPLAY_PERIOD:Int=480,
+                V_FRONT_PORCH:Int=10,
+                V_SYNC_PULSE:Int=2,
+                V_BACK_PORCH:Int=33) extends Module {
   val io = IO(new Bundle {
     val row = Output(UInt(10.W)) //The current row on which to draw
     val col = Output(UInt(10.W)) //The current col on which to draw
@@ -26,18 +25,16 @@ class VGATiming(H_DISPLAY_PERIOD:Int,
   val V_MAX:UInt = (V_DISPLAY_PERIOD + V_FRONT_PORCH + V_SYNC_PULSE + V_BACK_PORCH).U
 
   //Registers and update conditions
-  val col = RegInit(0.U(10.W))
-  val row = RegInit(0.U(10.W))
+  val col = RegInit(0.U(10.W)) //x coordinate
+  val row = RegInit(0.U(10.W)) //y coordiante
   val colUpdate:Bool = col >= (H_MAX-1.U)
   val rowUpdate:Bool = row >= V_MAX-1.U
 
-  //Update logic
-  //row only updates on coloumnUpdate, laps back on rowUpdate and colUpdate
-  col := Mux(colUpdate, 0.U, col + 1.U)
+  col := Mux(colUpdate, 0.U, col + 1.U) //Col increases each cycle, laps back to zero when hitting max
 
   when(rowUpdate && colUpdate) { //Start the frame over
     row := 0.U
-  } .elsewhen(colUpdate && !rowUpdate) {
+  } .elsewhen(colUpdate && !rowUpdate) { //Line finished
     row := row + 1.U
   } //otherwise keep previous value
 

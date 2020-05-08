@@ -20,30 +20,60 @@ class TetrisTop extends Module {
   val green = WireInit(0.U(10.W))
   val blue = WireInit(0.U(10.W))
 
-  val timing: VGATiming = Module(new VGATiming(
-    H_DISPLAY_PERIOD = 640,
-    H_FRONT_PORCH = 16,
-    H_SYNC_PULSE = 96,
-    H_BACK_PORCH = 48,
-    V_DISPLAY_PERIOD = 480,
-    V_FRONT_PORCH = 10,
-    V_SYNC_PULSE = 2,
-    V_BACK_PORCH = 33
-  ))
+  //MODULES
+  //Vga timing generator
+  val timing: VGATiming = Module(new VGATiming())
 
-  val box: Box = Module(new BoxDropModular(maxDepth = 14))
-  box.io.btnU := io.btnU
-  box.io.btnL := io.btnL
-  box.io.btnD := io.btnD
-  box.io.btnR := io.btnR
+  //Datapath
+  val datapath = Module(new Datapath())
 
-  box.io.col := timing.io.col
-  box.io.row := timing.io.row
-  box.io.frame := timing.io.frame
-  box.io.vblank := timing.io.vblank
-  red := box.io.red
-  green := box.io.green
-  blue := box.io.blue
+  //State machine
+  val fsm: FSM = Module(new FSM())
+
+  //Display driver
+  val display: DisplayDriver = Module(new DisplayDriver())
+
+  //memory
+  val memGrid: MemoryGrid = Module(new MemoryGrid())
+
+  /*
+  ASSIGNMENTS
+   */
+  fsm.io.btnL := io.btnL
+  fsm.io.btnR := io.btnR
+  fsm.io.btnU := io.btnU
+  fsm.io.btnD := io.btnD
+  fsm.io.finished := datapath.io.fin
+  fsm.io.validDrop := datapath.io.validDrop
+  fsm.io.frame := timing.io.frame
+
+  datapath.io.en := fsm.io.en
+  datapath.io.op := fsm.io.op
+
+
+  display.io.col := timing.io.col
+  display.io.row := timing.io.row
+  display.io.coords := datapath.io.coords
+
+  val empty = Wire(Flipped(new MemIO))
+  empty.rdData := 0.U
+  empty.wrData := 0.U
+  empty.X := 0.U
+  empty.Y := 0.U
+  empty.wen := 0.U
+  empty.ren := 0.U
+
+  when(timing.io.d_enable) {
+    display.io.mem <> memGrid.io
+    datapath.io.mem <> empty
+  } .otherwise {
+    datapath.io.mem <> memGrid.io
+    display.io.mem <> empty
+  }
+
+  red := display.io.red
+  blue := display.io.blue
+  green := display.io.green
 
   //Make sure to output zero during blanking interval
   when(timing.io.d_enable) {
@@ -55,9 +85,12 @@ class TetrisTop extends Module {
     io.green := 0.U
     io.blue := 0.U
   }
-  //Hsync, vsync hookups
+  //Hsync, vsync, rgb hookups
   io.hsync := timing.io.hsync
   io.vsync := timing.io.vsync
+  io.red := red
+  io.green := green
+  io.blue := blue
 }
 
 object TetrisTop extends App {

@@ -21,10 +21,6 @@ class Box extends Module {
 
     val coords: Vec[Coord] = Output(Vec(4, new Coord))
   })
-/*  for(i <- 0 to 3) {
-    io.coords(i).x := DontCare
-    io.coords(i).y := DontCare
-  }*/
 
   def setColours(r: UInt, g: UInt, b: UInt): Unit = {
     io.red := r

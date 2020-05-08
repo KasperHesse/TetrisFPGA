@@ -13,29 +13,13 @@ class Playground extends Module {
 
   cm.io.mem <> mem.io
 
-//  cm.io.mem.rdData := mem.io.rdData
-//  mem.io.X := cm.io.mem.X
-//  mem.io.Y := cm.io.mem.Y
-//  mem.io.wrData := cm.io.mem.wrData
-//  mem.io.ren := cm.io.mem.ren
-//  mem.io.wen := cm.io.mem.wen
-
   cm.io.en := io.en
   io.finished := cm.io.finished
 }
 
-class memIO extends Bundle {
-  val X = Output(UInt(4.W))
-  val Y = Output(UInt(4.W))
-  val wrData = Output(Bool())
-  val wen = Output(Bool())
-  val ren = Output(Bool())
-  val rdData = Input(Bool())
-}
-
 class CheckMem extends Module {
   val io = IO(new Bundle {
-    val mem = new memIO()
+    val mem = new MemIO()
     val en = Input(Bool())
     val finished = Output(Bool())
   })
