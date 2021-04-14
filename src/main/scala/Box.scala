@@ -21,8 +21,6 @@ class Box extends Module {
 
     val coords: Vec[Coord] = Output(Vec(4, new Coord))
   })
-  
-  val x = RegInit(0.U(4.W))
 
   def setColours(r: UInt, g: UInt, b: UInt): Unit = {
     io.red := r
